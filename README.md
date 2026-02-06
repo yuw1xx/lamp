@@ -37,9 +37,9 @@ lamp-manager
 ## 🖥️ Interface Overview
 
 The manager provides a clean, stable numeric interface:
-- Main Menu: Displays all detected services and their current live status.
-- Service Actions: Choose a service to Start, Stop, Restart, or view a detailed Status log.
-- Config Editor: Jump straight into the configuration file (apache2.conf, my.cnf, php.ini) using your system's default editor (nano/vim).
+- **Main Menu:** Displays all detected services and their current live status.
+- **Service Actions:** Choose a service to Start, Stop, Restart, or view a detailed Status log.
+- **Config Editor:** Jump straight into the configuration file (apache2.conf, my.cnf, php.ini) using your system's default editor (nano/vim).
 
 ## 🗑️ Uninstallation
 
