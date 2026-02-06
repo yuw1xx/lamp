@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.0.2"
+VERSION="1.0.3"
 EXPECTED="/usr/local/bin/lamp-manager"
 REPO_RAW="https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/lamp-manager"
 REAL_PATH=$(readlink -f "$0")
@@ -46,12 +46,24 @@ update_manager() {
     read -p "Press Enter to return to menu..."
 }
 
+open_web_interface() {
+    echo -e "${CYAN}🌐 Opening Web Interface (http://localhost)...${NC}"
+    if command -v xdg-open &>/dev/null; then
+        xdg-open "http://localhost"
+    elif command -v open &>/dev/null; then
+        open "http://localhost"
+    else
+        echo -e "${RED}❌ Could not find a browser opener (xdg-open/open).${NC}"
+        echo "Please visit http://localhost manually."
+        sleep 2
+    fi
+}
+
 security_scan() {
     clear
     echo -e "${BOLD}${RED}🛡️ LAMP SECURITY SCAN${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-    # 1. Port Check
     echo -e "${YELLOW}[!] Checking Open Ports...${NC}"
     if command -v ss &>/dev/null; then
         ss -tuln | grep -E ':80|:443|:3306' | sed 's/^/  /'
@@ -59,7 +71,6 @@ security_scan() {
         echo "  (ss command not found, skipping port check)"
     fi
 
-    # 2. MariaDB Root Password Check
     echo -ne "\n${YELLOW}[!] MariaDB Root Access: ${NC}"
     if sudo mysql -u root -e "exit" 2>/dev/null; then
         echo -e "${RED}UNSECURED (No Password)${NC}"
@@ -68,7 +79,6 @@ security_scan() {
         echo -e "${GREEN}SECURED (Password Required)${NC}"
     fi
 
-    # 3. Web Root Permissions
     echo -ne "\n${YELLOW}[!] Web Root Permissions (/var/www/html): ${NC}"
     if [ -d "/var/www/html" ]; then
         perms=$(stat -c "%a" /var/www/html)
@@ -97,12 +107,7 @@ get_services() {
 
 SERVICES=($(get_services))
 
-CYAN="\033[0;36m"
-GREEN="\033[0;32m"
-RED="\033[0;31m"
-YELLOW="\033[1;33m"
-BOLD="\033[1m"
-NC="\033[0m"
+CYAN="\033[0;36m"; GREEN="\033[0;32m"; RED="\033[0;31m"; YELLOW="\033[1;33m"; BOLD="\033[1m"; NC="\033[0m"
 
 service_status() {
     local svc=$1
@@ -136,14 +141,17 @@ main_menu() {
         done
 
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${BOLD}s)${NC} Security Scan"
-        echo -e "${BOLD}u)${NC} Check for Updates"
-        echo -e "${BOLD}q)${NC} Quit"
+        echo -e "${BOLD}w)${NC} Web Interface | ${BOLD}s)${NC} Security Scan"
+        echo -e "${BOLD}u)${NC} Update         | ${BOLD}q)${NC} Quit"
         echo ""
         read -p "Select an option: " choice
 
         if [[ "$choice" == "q" ]]; then
             exit 0
+        elif [[ "$choice" == "w" ]]; then
+            open_web_interface
+        elif [[ "$choice" == "s" ]]; then
+            security_scan
         elif [[ "$choice" == "u" ]]; then
             update_manager
         elif [[ "$choice" -ge 1 && "$choice" -le ${#SERVICES[@]} ]]; then
@@ -159,12 +167,8 @@ service_actions() {
         echo -e "${BOLD}${CYAN} 🔧 MANAGE: $svc${NC}"
         echo -e " Current Status: $(service_status "$svc")"
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e " 1) ${GREEN}Start${NC}"
-        echo -e " 2) ${RED}Stop${NC}"
-        echo -e " 3) ${YELLOW}Restart${NC}"
-        echo -e " 4) 🔍 Detailed Status"
-        echo -e " 5) 📝 Edit Config"
-        echo -e " 6) ⬅️  Back"
+        echo -e " 1) ${GREEN}Start${NC}   | 2) ${RED}Stop${NC}    | 3) ${YELLOW}Restart${NC}"
+        echo -e " 4) 🔍 Status | 5) 📝 Config | 6) ⬅️  Back"
         echo -e " 7) 📜 Live Log Monitor (Ctrl+C to stop)"
         echo ""
         read -p "Select action: " act
@@ -189,8 +193,6 @@ service_actions() {
                clear
                echo -e "${YELLOW}👀 Monitoring $svc logs... (Press Ctrl+C to stop)${NC}"
                echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-
-               # Define log paths based on service
                local log_files=""
                if [[ "$svc" =~ (apache|httpd) ]]; then
                    log_files="/var/log/apache2/*.log /var/log/httpd/*.log"
