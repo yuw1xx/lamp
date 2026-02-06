@@ -46,6 +46,43 @@ update_manager() {
     read -p "Press Enter to return to menu..."
 }
 
+security_scan() {
+    clear
+    echo -e "${BOLD}${RED}🛡️ LAMP SECURITY SCAN${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    # 1. Port Check
+    echo -e "${YELLOW}[!] Checking Open Ports...${NC}"
+    if command -v ss &>/dev/null; then
+        ss -tuln | grep -E ':80|:443|:3306' | sed 's/^/  /'
+    else
+        echo "  (ss command not found, skipping port check)"
+    fi
+
+    # 2. MariaDB Root Password Check
+    echo -ne "\n${YELLOW}[!] MariaDB Root Access: ${NC}"
+    if sudo mysql -u root -e "exit" 2>/dev/null; then
+        echo -e "${RED}UNSECURED (No Password)${NC}"
+        echo "  Recommendation: Run 'sudo mariadb-secure-installation'"
+    else
+        echo -e "${GREEN}SECURED (Password Required)${NC}"
+    fi
+
+    # 3. Web Root Permissions
+    echo -ne "\n${YELLOW}[!] Web Root Permissions (/var/www/html): ${NC}"
+    if [ -d "/var/www/html" ]; then
+        perms=$(stat -c "%a" /var/www/html)
+        owner=$(stat -c "%U:%G" /var/www/html)
+        echo -e "$perms ($owner)"
+        [[ "$perms" == "777" ]] && echo -e "  ${RED}⚠️ WARNING: Permissions are too open (777)!${NC}"
+    else
+        echo "Folder not found."
+    fi
+
+    echo -e "\n${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    read -p "Press Enter to return to menu..."
+}
+
 get_services() {
     local svcs=()
     local apache=$(systemctl list-unit-files --type=service | grep -E '^(apache2|httpd)\.service' | awk '{print $1}' | head -n 1)
@@ -99,6 +136,7 @@ main_menu() {
         done
 
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BOLD}s)${NC} Security Scan"
         echo -e "${BOLD}u)${NC} Check for Updates"
         echo -e "${BOLD}q)${NC} Quit"
         echo ""
@@ -150,14 +188,23 @@ service_actions() {
             7) 
                clear
                echo -e "${YELLOW}👀 Monitoring $svc logs... (Press Ctrl+C to stop)${NC}"
-               # Check common log locations
+               echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+               # Define log paths based on service
+               local log_files=""
                if [[ "$svc" =~ (apache|httpd) ]]; then
-                   sudo tail -f /var/log/apache2/*.log /var/log/httpd/*.log 2>/dev/null
+                   log_files="/var/log/apache2/*.log /var/log/httpd/*.log"
                elif [[ "$svc" =~ (mysql|mariadb) ]]; then
-                   sudo tail -f /var/log/mysql/*.log /var/log/mariadb/*.log /var/lib/mysql/*.err 2>/dev/null
+                   log_files="/var/log/mysql/*.log /var/log/mariadb/*.log /var/lib/mysql/*.err"
                elif [[ "$svc" =~ fpm ]]; then
-                   sudo tail -f /var/log/php*-fpm.log 2>/dev/null
+                   log_files="/var/log/php*-fpm.log"
+               fi
+
+               if [[ -n "$log_files" ]] && ls $log_files >/dev/null 2>&1; then
+                   sudo tail -f $log_files
                else
+                   echo -e "${RED}⚠️ No specific log files found. Falling back to Systemd Journal...${NC}"
+                   echo ""
                    sudo journalctl -u "$svc" -f
                fi
                ;;
