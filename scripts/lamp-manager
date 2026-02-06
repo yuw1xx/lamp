@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# --- 0. Meta & Guard ---
 VERSION="1.1.1"
 EXPECTED="/usr/local/bin/lamp-manager"
-REPO_RAW="https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/lamp-manager.sh"
+REPO_RAW="https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/lamp-manager"
 REAL_PATH=$(readlink -f "$0")
 
 if [[ "$REAL_PATH" != "$EXPECTED" ]]; then
@@ -13,33 +12,40 @@ if [[ "$REAL_PATH" != "$EXPECTED" ]]; then
     exit 1
 fi
 
-# --- 1. Update Logic ---
 update_manager() {
     clear
     echo -e "\033[0;36m🔄 Checking for updates...\033[0m"
     
-    # Fetch the version number from the remote script header
-    REMOTE_VER=$(curl -sSL "$REPO_RAW" | grep -m1 'VERSION=' | cut -d'"' -f2)
-
-    if [[ -z "$REMOTE_VER" ]]; then
-        echo -e "\033[0;31m❌ Could not reach GitHub to check version.\033[0m"
-    elif [[ "$REMOTE_VER" == "$VERSION" ]]; then
-        echo -e "\033[0;32m✅ You are on the latest version ($VERSION).\033[0m"
+    REMOTE_CONTENT=$(curl -sSL -m 10 -H "Cache-Control: no-cache" "$REPO_RAW")
+    
+    if [[ -z "$REMOTE_CONTENT" ]]; then
+        echo -e "\033[0;31m❌ Could not reach GitHub or the file is empty.\033[0m"
     else
-        echo -e "\033[1;33m🚀 New version found: $REMOTE_VER (Current: $VERSION)\033[0m"
-        read -p "Do you want to update now? (y/N): " choice
-        if [[ "$choice" =~ ^[Yy]$ ]]; then
-            echo "📥 Downloading update..."
-            sudo curl -sSL "$REPO_RAW" -o "$EXPECTED"
-            sudo chmod +x "$EXPECTED"
-            echo -e "\033[0;32m✨ Update complete! Please restart the manager.\033[0m"
-            exit 0
+        REMOTE_VER=$(echo "$REMOTE_CONTENT" | grep -m1 'VERSION=' | cut -d'"' -f2)
+        
+        if [[ -z "$REMOTE_VER" ]]; then
+            echo -e "\033[0;31m❌ Failed to parse version from GitHub.\033[0m"
+        elif [[ "$REMOTE_VER" == "$VERSION" ]]; then
+            echo -e "\033[0;32m✅ You are on the latest version ($VERSION).\033[0m"
+        else
+            echo -e "\033[1;33m🚀 New version found: $REMOTE_VER (Current: $VERSION)\033[0m"
+            read -p "Do you want to update now? (y/N): " choice
+            if [[ "$choice" =~ ^[Yy]$ ]]; then
+                echo "📥 Downloading update..."
+                if sudo curl -sSL "$REPO_RAW" -o "${EXPECTED}.tmp"; then
+                    sudo mv "${EXPECTED}.tmp" "$EXPECTED"
+                    sudo chmod +x "$EXPECTED"
+                    echo -e "\033[0;32m✨ Update complete! Please restart the manager.\033[0m"
+                    exit 0
+                else
+                    echo -e "\033[0;31m❌ Download failed. Update aborted.\033[0m"
+                fi
+            fi
         fi
     fi
     read -p "Press Enter to return to menu..."
 }
 
-# --- 2. Service Discovery ---
 get_services() {
     local svcs=()
     local apache=$(systemctl list-unit-files --type=service | grep -E '^(apache2|httpd)\.service' | awk '{print $1}' | head -n 1)
@@ -54,7 +60,6 @@ get_services() {
 
 SERVICES=($(get_services))
 
-# --- 3. UI Styling ---
 CYAN="\033[0;36m"
 GREEN="\033[0;32m"
 RED="\033[0;31m"
@@ -80,7 +85,6 @@ manage() {
     sleep 1
 }
 
-# --- 4. Menus ---
 main_menu() {
     while true; do
         clear
