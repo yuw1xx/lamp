@@ -1,22 +1,49 @@
 #!/bin/bash
 
+# --- 0. Meta & Guard ---
+VERSION="1.1.0"  # Increment this when you push changes to GitHub
 EXPECTED="/usr/local/bin/lamp-manager"
+REPO_RAW="https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/lamp-manager.sh"
 REAL_PATH=$(readlink -f "$0")
 
 if [[ "$REAL_PATH" != "$EXPECTED" ]]; then
     echo -e "\033[0;31m❌ Error: Illegal Execution Path.\033[0m"
     echo "This script must be installed via the official installer to function."
-    echo "Use: curl -sSL https://raw.githubusercontent.com/yuw1xx/lamp/refs/heads/main/scripts/install.sh | bash"
+    echo "Use: curl -sSL https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/install.sh | bash"
     exit 1
 fi
 
+# --- 1. Update Logic ---
+update_manager() {
+    clear
+    echo -e "\033[0;36m🔄 Checking for updates...\033[0m"
+    
+    # Fetch the version number from the remote script header
+    REMOTE_VER=$(curl -sSL "$REPO_RAW" | grep -m1 'VERSION=' | cut -d'"' -f2)
+
+    if [[ -z "$REMOTE_VER" ]]; then
+        echo -e "\033[0;31m❌ Could not reach GitHub to check version.\033[0m"
+    elif [[ "$REMOTE_VER" == "$VERSION" ]]; then
+        echo -e "\033[0;32m✅ You are on the latest version ($VERSION).\033[0m"
+    else
+        echo -e "\033[1;33m🚀 New version found: $REMOTE_VER (Current: $VERSION)\033[0m"
+        read -p "Do you want to update now? (y/N): " choice
+        if [[ "$choice" =~ ^[Yy]$ ]]; then
+            echo "📥 Downloading update..."
+            sudo curl -sSL "$REPO_RAW" -o "$EXPECTED"
+            sudo chmod +x "$EXPECTED"
+            echo -e "\033[0;32m✨ Update complete! Please restart the manager.\033[0m"
+            exit 0
+        fi
+    fi
+    read -p "Press Enter to return to menu..."
+}
+
+# --- 2. Service Discovery ---
 get_services() {
     local svcs=()
-    # Find Apache/HTTPD
     local apache=$(systemctl list-unit-files --type=service | grep -E '^(apache2|httpd)\.service' | awk '{print $1}' | head -n 1)
-    # Find MariaDB/MySQL
     local mysql=$(systemctl list-unit-files --type=service | grep -E '^(mariadb|mysql)\.service' | awk '{print $1}' | head -n 1)
-    # Find PHP-FPM
     local php=$(systemctl list-unit-files --type=service | grep -E '^php.*-fpm\.service' | awk '{print $1}' | head -n 1)
 
     [[ -n "$apache" ]] && svcs+=("$apache")
@@ -27,6 +54,7 @@ get_services() {
 
 SERVICES=($(get_services))
 
+# --- 3. UI Styling ---
 CYAN="\033[0;36m"
 GREEN="\033[0;32m"
 RED="\033[0;31m"
@@ -52,13 +80,13 @@ manage() {
     sleep 1
 }
 
+# --- 4. Menus ---
 main_menu() {
     while true; do
         clear
-        echo -e "${BOLD}${CYAN} 🛠️  LAMP MANAGER : UNIVERSAL${NC}"
+        echo -e "${BOLD}${CYAN} 🛠️  LAMP MANAGER : UNIVERSAL (v$VERSION)${NC}"
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-        # Display Services with live status
         local i=1
         for s in "${SERVICES[@]}"; do
             echo -ne "${BOLD}$i)${NC} $(printf '%-20s' "$s") "
@@ -67,12 +95,15 @@ main_menu() {
         done
 
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BOLD}u)${NC} Check for Updates"
         echo -e "${BOLD}q)${NC} Quit"
         echo ""
-        read -p "Select a service number: " choice
+        read -p "Select an option: " choice
 
         if [[ "$choice" == "q" ]]; then
             exit 0
+        elif [[ "$choice" == "u" ]]; then
+            update_manager
         elif [[ "$choice" -ge 1 && "$choice" -le ${#SERVICES[@]} ]]; then
             service_actions "${SERVICES[$((choice-1))]}"
         fi
@@ -101,7 +132,6 @@ service_actions() {
             3) manage "$svc" "restart" ;;
             4) clear; systemctl status "$svc"; read -p "Press Enter...";;
             5)
-               # Simple config path guesser
                local path=""
                [[ "$svc" =~ (apache|httpd) ]] && path="/etc/apache2/apache2.conf"
                [[ ! -f "$path" && "$svc" =~ (apache|httpd) ]] && path="/etc/httpd/conf/httpd.conf"
