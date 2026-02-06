@@ -127,6 +127,7 @@ service_actions() {
         echo -e " 4) 🔍 Detailed Status"
         echo -e " 5) 📝 Edit Config"
         echo -e " 6) ⬅️  Back"
+        echo -e " 7) 📜 Live Log Monitor (Ctrl+C to stop)"
         echo ""
         read -p "Select action: " act
 
@@ -146,6 +147,20 @@ service_actions() {
                if [[ -f "$path" ]]; then sudo ${EDITOR:-nano} "$path"; else echo "Config not found!"; sleep 1; fi
                ;;
             6) return ;;
+            7) 
+               clear
+               echo -e "${YELLOW}👀 Monitoring $svc logs... (Press Ctrl+C to stop)${NC}"
+               # Check common log locations
+               if [[ "$svc" =~ (apache|httpd) ]]; then
+                   sudo tail -f /var/log/apache2/*.log /var/log/httpd/*.log 2>/dev/null
+               elif [[ "$svc" =~ (mysql|mariadb) ]]; then
+                   sudo tail -f /var/log/mysql/*.log /var/log/mariadb/*.log /var/lib/mysql/*.err 2>/dev/null
+               elif [[ "$svc" =~ fpm ]]; then
+                   sudo tail -f /var/log/php*-fpm.log 2>/dev/null
+               else
+                   sudo journalctl -u "$svc" -f
+               fi
+               ;;
         esac
     done
 }
