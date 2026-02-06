@@ -1,12 +1,12 @@
 #!/bin/bash
 
-REPO_URL="https://raw.githubusercontent.com/yuw1xx/lamp/refs/heads/main/lamp-manager"
+REPO_URL="https://raw.githubusercontent.com/yuw1xx/lamp/refs/heads/main/scripts/lamp-manager"
 TARGET="/usr/local/bin/lamp-manager"
 EXPECTED_PATH="/usr/local/bin/lamp-manager"
 
 if [[ "$(readlink -f "$0")" != "$EXPECTED_PATH" ]]; then
     echo -e "\033[0;31m❌ Error: LAMP Manager must be installed via the official installer.\033[0m"
-    echo "Please use: curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install.sh | bash"
+    echo "Please use: curl -sSL https://raw.githubusercontent.com/yuw1xx/lamp/refs/heads/main/scripts/install.sh | bash"
     exit 1
 fi
 
