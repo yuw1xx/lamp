@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 EXPECTED="/usr/local/bin/lamp-manager"
 REPO_RAW="https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/lamp-manager"
 REAL_PATH=$(readlink -f "$0")
@@ -134,7 +134,7 @@ service_actions() {
             1) manage "$svc" "start" ;;
             2) manage "$svc" "stop" ;;
             3) manage "$svc" "restart" ;;
-            4) clear; systemctl status "$svc"; read -p "Press Enter...";;
+            4) clear; systemctl status "$svc" --no-pager; echo ""; read -p "Press Enter to return to menu...";;
             5)
                local path=""
                [[ "$svc" =~ (apache|httpd) ]] && path="/etc/apache2/apache2.conf"
