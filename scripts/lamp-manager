@@ -141,8 +141,10 @@ main_menu() {
         done
 
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${BOLD}w)${NC} Web Interface | ${BOLD}s)${NC} Security Scan"
-        echo -e "${BOLD}u)${NC} Update         | ${BOLD}q)${NC} Quit"
+        echo -e "${BOLD}w)${NC} Web Interface"
+        echo -e "${BOLD}s)${NC} Security Scan"
+        echo -e "${BOLD}u)${NC} Update"
+        echo -e "${BOLD}q)${NC} Quit"
         echo ""
         read -p "Select an option: " choice
 
@@ -167,8 +169,12 @@ service_actions() {
         echo -e "${BOLD}${CYAN} 🔧 MANAGE: $svc${NC}"
         echo -e " Current Status: $(service_status "$svc")"
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e " 1) ${GREEN}Start${NC}   | 2) ${RED}Stop${NC}    | 3) ${YELLOW}Restart${NC}"
-        echo -e " 4) 🔍 Status | 5) 📝 Config | 6) ⬅️  Back"
+        echo -e " 1) ${GREEN}Start${NC}"
+        echo -e " 2) ${RED}Stop${NC}"
+        echo -e " 3) ${YELLOW}Restart${NC}"
+        echo -e " 4) 🔍 Status"
+        echo -e " 5) 📝 Config"
+        echo -e " 6) ⬅️  Back"
         echo -e " 7) 📜 Live Log Monitor (Ctrl+C to stop)"
         echo ""
         read -p "Select action: " act
