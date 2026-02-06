@@ -2,24 +2,24 @@
 
 INSTALL_PATH="/usr/local/bin/lamp-manager"
 
-echo "🗑️ Starting Uninstallation..."
+echo "🗑️  Starting LAMP Manager Uninstaller..."
 
-# 1. Remove the binary first
+# 1. Remove the binary
 if [ -f "$INSTALL_PATH" ]; then
     sudo rm "$INSTALL_PATH"
-    echo "✅ Removed 'lamp-manager' command from system path."
+    echo "✅ Removed 'lamp-manager' command."
 else
-    echo "ℹ️  'lamp-manager' command not found in $INSTALL_PATH."
+    echo "ℹ️  'lamp-manager' not found in $INSTALL_PATH. Skipping."
 fi
 
-# 2. Ask to purge the full stack
-echo -n "Do you also want to uninstall Apache, MariaDB, and PHP? (y/N): "
-read -r choice
+# 2. Package Purge Logic
+# We use /dev/tty to ensure 'read' works even if the script was piped from curl
+echo -n "Clean up all LAMP packages (Apache, MariaDB, PHP)? (y/N): "
+read -r choice < /dev/tty
 
 if [[ "$choice" =~ ^[Yy]$ ]]; then
-    echo "📦 Removing LAMP packages..."
+    echo "📦 Identifying package manager..."
     
-    # Use command discovery to find the right package manager
     if command -v pacman &>/dev/null; then
         # Arch / CachyOS / Manjaro
         sudo pacman -Rs --noconfirm apache mariadb php-fpm
@@ -27,15 +27,14 @@ if [[ "$choice" =~ ^[Yy]$ ]]; then
         # Debian / Ubuntu / Pop!_OS
         sudo apt purge -y apache2 mariadb-server php*
     elif command -v dnf &>/dev/null; then
-        # Fedora / RHEL
+        # Fedora / RHEL / CentOS
         sudo dnf remove -y httpd mariadb-server php-fpm
     else
-        echo "⚠️  Package manager not recognized. Please remove packages manually."
+        echo "❌ No supported package manager found. Please uninstall packages manually."
     fi
-    
     echo "✨ LAMP stack components removed."
 else
-    echo "🛑 Skipping package removal. Only the manager was removed."
+    echo "🛑 Package removal skipped. Only the manager tool was removed."
 fi
 
 echo "👋 Uninstallation complete."
