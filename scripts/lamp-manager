@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.0.3-3"
+VERSION="1.0.3-4"
 EXPECTED="/usr/local/bin/lamp-manager"
 REPO_RAW="https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/lamp-manager"
 REAL_PATH=$(readlink -f "$0")
@@ -131,7 +131,7 @@ main_menu() {
     while true; do
         clear
         echo -e "${BOLD}${CYAN} 🛠️  LAMP MANAGER : UNIVERSAL (v$VERSION)${NC}"
-        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
         local i=1
         for s in "${SERVICES[@]}"; do
@@ -140,7 +140,7 @@ main_menu() {
             ((i++))
         done
 
-        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo -e "${BOLD}w)${NC} Web Interface"
         echo -e "${BOLD}s)${NC} Security Scan"
         echo -e "${BOLD}u)${NC} Update"
