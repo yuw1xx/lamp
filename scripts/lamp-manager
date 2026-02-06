@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- 0. Meta & Guard ---
-VERSION="1.1.0"  # Increment this when you push changes to GitHub
+VERSION="1.1.1"
 EXPECTED="/usr/local/bin/lamp-manager"
 REPO_RAW="https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/lamp-manager.sh"
 REAL_PATH=$(readlink -f "$0")
