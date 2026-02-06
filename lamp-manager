@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# --- 1. Dynamic Service Detection ---
+# Finds Apache (apache2 or httpd)
+HTTPD_SVC=$(systemctl list-unit-files --type=service | grep -E '^(apache2|httpd)\.service' | awk '{print $1}' | head -n 1)
+# Finds MariaDB or MySQL
+DB_SVC=$(systemctl list-unit-files --type=service | grep -E '^(mariadb|mysql)\.service' | awk '{print $1}' | head -n 1)
+# Finds PHP-FPM (handles versioned names like php8.2-fpm or generic php-fpm)
+FPM_SVC=$(systemctl list-unit-files --type=service | grep -E 'php.*-fpm\.service' | awk '{print $1}' | head -n 1)
+
+SERVICES=()
+[[ -n "$HTTPD_SVC" ]] && SERVICES+=("$HTTPD_SVC")
+[[ -n "$DB_SVC" ]] && SERVICES+=("$DB_SVC")
+[[ -n "$FPM_SVC" ]] && SERVICES+=("$FPM_SVC")
+
+# --- 2. Dynamic Config Mapping ---
+get_config_path() {
+    case "$1" in
+        apache2|httpd)
+            [[ -f "/etc/apache2/apache2.conf" ]] && echo "/etc/apache2/apache2.conf" && return
+            [[ -f "/etc/httpd/conf/httpd.conf" ]] && echo "/etc/httpd/conf/httpd.conf" && return
+            ;;
+        mariadb|mysql)
+            [[ -f "/etc/mysql/my.cnf" ]] && echo "/etc/mysql/my.cnf" && return
+            [[ -f "/etc/my.cnf" ]] && echo "/etc/my.cnf" && return
+            ;;
+        *fpm*)
+            php_path=$(php --ini | grep "Loaded Configuration File" | awk '{print $4}')
+            echo "$php_path" && return
+            ;;
+    esac
+    echo "NOT_FOUND"
+}
+
+# --- 3. UI and Colors ---
+CYAN="\033[0;36m"
+GREEN="\033[0;32m"
+RED="\033[0;31m"
+BOLD="\033[1m"
+NC="\033[0m"
+
+show_logo() {
+    clear
+    echo -e "${CYAN}${BOLD}-----------------------------------"
+    echo -e "      LAMP MANAGER: UNIVERSAL"
+    echo -e "-----------------------------------${NC}"
+}
+
+# --- 4. Core Actions ---
+manage_service() {
+    local svc=$1
+    local action=$2
+    echo -e "${CYAN}⚙️ Executing $action on $svc...${NC}"
+    sudo systemctl "$action" "$svc"
+    [[ "$action" == "status" ]] && systemctl status "$svc" --no-pager | grep -E "Active:"
+    read -n 1 -s -r -p "Press any key to continue..."
+}
+
+edit_config() {
+    local svc=$1
+    local path=$(get_config_path "$svc")
+    if [[ "$path" != "NOT_FOUND" ]]; then
+        sudo ${EDITOR:-nano} "$path"
+    else
+        echo -e "${RED}❌ Could not locate config for $svc${NC}"
+        read -n 1 -s -r -p "Press any key to continue..."
+    fi
+}
+
+# --- 5. Navigation ---
+service_menu() {
+    local svc=$1
+    while true; do
+        show_logo
+        echo -e "Selected: ${GREEN}$svc${NC}\n"
+        echo "1) Start"
+        echo "2) Stop"
+        echo "3) Restart"
+        echo "4) Status"
+        echo "5) Edit Config"
+        echo "6) Back"
+
+        read -p "Selection: " opt
+        case $opt in
+            1) manage_service "$svc" "start" ;;
+            2) manage_service "$svc" "stop" ;;
+            3) manage_service "$svc" "restart" ;;
+            4) manage_service "$svc" "status" ;;
+            5) edit_config "$svc" ;;
+            6) return ;;
+        esac
+    done
+}
+
+# --- Main Loop ---
+while true; do
+    show_logo
+    echo "Select a service to manage:"
+
+    # Check if fzf is installed for a better menu
+    if command -v fzf &>/dev/null; then
+        choice=$(printf "%s\nExit" "${SERVICES[@]}" | fzf --height 10% --border --header="LAMP Services")
+    else
+        select choice in "${SERVICES[@]}" "Exit"; do break; done
+    fi
+
+    [[ "$choice" == "Exit" || -z "$choice" ]] && exit 0
+    service_menu "$choice"
+done
