@@ -1,5 +1,15 @@
 #!/bin/bash
 
+EXPECTED="/usr/local/bin/lamp-manager"
+REAL_PATH=$(readlink -f "$0")
+
+if [[ "$REAL_PATH" != "$EXPECTED" ]]; then
+    echo -e "\033[0;31m❌ Error: Illegal Execution Path.\033[0m"
+    echo "This script must be installed via the official installer to function."
+    echo "Use: curl -sSL https://raw.githubusercontent.com/yuw1xx/lamp/main/scripts/install.sh | bash"
+    exit 1
+fi
+
 get_services() {
     local svcs=()
     # Find Apache/HTTPD
