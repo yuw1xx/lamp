@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# --- 1. Robust Service Discovery ---
+# We use 'systemctl' but filter strictly for service names to prevent UI glitches
+get_services() {
+    local svcs=()
+    # Find Apache/HTTPD
+    local apache=$(systemctl list-unit-files --type=service | grep -E '^(apache2|httpd)\.service' | awk '{print $1}' | head -n 1)
+    # Find MariaDB/MySQL
+    local mysql=$(systemctl list-unit-files --type=service | grep -E '^(mariadb|mysql)\.service' | awk '{print $1}' | head -n 1)
+    # Find PHP-FPM
+    local php=$(systemctl list-unit-files --type=service | grep -E '^php.*-fpm\.service' | awk '{print $1}' | head -n 1)
+
+    [[ -n "$apache" ]] && svcs+=("$apache")
+    [[ -n "$mysql" ]] && svcs+=("$mysql")
+    [[ -n "$php" ]] && svcs+=("$php")
+    echo "${svcs[@]}"
+}
+
+SERVICES=($(get_services))
+
+# --- 2. Styling ---
+CYAN="\033[0;36m"
+GREEN="\033[0;32m"
+RED="\033[0;31m"
+YELLOW="\033[1;33m"
+BOLD="\033[1m"
+NC="\033[0m"
+
+# --- 3. Core Functions ---
+service_status() {
+    local svc=$1
+    local status=$(systemctl is-active "$svc")
+    if [[ "$status" == "active" ]]; then
+        echo -e "${GREEN}● RUNNING${NC}"
+    else
+        echo -e "${RED}○ STOPPED${NC}"
+    fi
+}
+
+manage() {
+    local svc=$1
+    local action=$2
+    echo -e "${CYAN}🚀 $action-ing $svc...${NC}"
+    sudo systemctl "$action" "$svc"
+    sleep 1
+}
+
+# --- 4. The Clean UI ---
+main_menu() {
+    while true; do
+        clear
+        echo -e "${BOLD}${CYAN} 🛠️  LAMP MANAGER : UNIVERSAL${NC}"
+        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+        # Display Services with live status
+        local i=1
+        for s in "${SERVICES[@]}"; do
+            echo -ne "${BOLD}$i)${NC} $(printf '%-20s' "$s") "
+            service_status "$s"
+            ((i++))
+        done
+
+        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BOLD}q)${NC} Quit"
+        echo ""
+        read -p "Select a service number: " choice
+
+        if [[ "$choice" == "q" ]]; then
+            exit 0
+        elif [[ "$choice" -ge 1 && "$choice" -le ${#SERVICES[@]} ]]; then
+            service_actions "${SERVICES[$((choice-1))]}"
+        fi
+    done
+}
+
+service_actions() {
+    local svc=$1
+    while true; do
+        clear
+        echo -e "${BOLD}${CYAN} 🔧 MANAGE: $svc${NC}"
+        echo -e " Current Status: $(service_status "$svc")"
+        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e " 1) ${GREEN}Start${NC}"
+        echo -e " 2) ${RED}Stop${NC}"
+        echo -e " 3) ${YELLOW}Restart${NC}"
+        echo -e " 4) 🔍 Detailed Status"
+        echo -e " 5) 📝 Edit Config"
+        echo -e " 6) ⬅️  Back"
+        echo ""
+        read -p "Select action: " act
+
+        case $act in
+            1) manage "$svc" "start" ;;
+            2) manage "$svc" "stop" ;;
+            3) manage "$svc" "restart" ;;
+            4) clear; systemctl status "$svc"; read -p "Press Enter...";;
+            5)
+               # Simple config path guesser
+               local path=""
+               [[ "$svc" =~ (apache|httpd) ]] && path="/etc/apache2/apache2.conf"
+               [[ ! -f "$path" && "$svc" =~ (apache|httpd) ]] && path="/etc/httpd/conf/httpd.conf"
+               [[ "$svc" =~ (mysql|mariadb) ]] && path="/etc/my.cnf"
+               [[ ! -f "$path" && "$svc" =~ (mysql|mariadb) ]] && path="/etc/mysql/my.cnf"
+               [[ "$svc" =~ fpm ]] && path=$(php --ini | grep "Loaded Configuration File" | awk '{print $4}')
+
+               if [[ -f "$path" ]]; then sudo ${EDITOR:-nano} "$path"; else echo "Config not found!"; sleep 1; fi
+               ;;
+            6) return ;;
+        esac
+    done
+}
+
+main_menu
